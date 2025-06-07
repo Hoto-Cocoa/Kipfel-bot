@@ -24,6 +24,13 @@ type BacklinkResponse struct {
 	Backlinks []Backlink `json:"backlinks"`
 }
 
+type Discuss struct {
+	Slug        string `json:"slug"`
+	Topic       string `json:"topic"`
+	UpdatedDate int    `json:"updated_date"`
+	Status      string `json:"status"`
+}
+
 func main() {
 	cfg, err := ini.Load("config.ini")
 	if err != nil {
@@ -41,12 +48,29 @@ func main() {
 		dataCfg = ini.Empty()
 		nsInput := prompt("Enter namespaces to search (comma-separated): ")
 		logTpl := prompt("Enter log template (use {old} and {new}): ")
+		watchDoc := prompt("Enter document to watch for open discussion: ")
 		dataCfg.Section("").Key("namespaces").SetValue(nsInput)
 		dataCfg.Section("").Key("logTemplate").SetValue(logTpl)
+		dataCfg.Section("").Key("watchDocument").SetValue(watchDoc)
 		dataCfg.SaveTo("data.ini")
 	}
 	nsList := parseList(dataCfg.Section("").Key("namespaces").String())
 	logTemplate := dataCfg.Section("").Key("logTemplate").String()
+	watchDocument := dataCfg.Section("").Key("watchDocument").String()
+
+	go func() {
+		for {
+			open, err := checkDiscuss(domain, token, watchDocument)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error checking discuss: %v\n", err)
+				panic(err)
+			} else if open {
+				fmt.Printf("Discuss on '%s' is normal. Stopping bot.\n", watchDocument)
+				os.Exit(0)
+			}
+			time.Sleep(15 * time.Second)
+		}
+	}()
 
 	oldTitle := prompt("Enter old title: ")
 	newTitle := prompt("Enter new title: ")
@@ -147,6 +171,29 @@ func getBacklinksByNamespace(domain, token, title, namespace string) ([]string, 
 		}
 	}
 	return docs, nil
+}
+
+func checkDiscuss(domain, token, title string) (bool, error) {
+	urlStr := fmt.Sprintf("https://%s/api/discuss/%s", domain, url.PathEscape(title))
+	req, _ := http.NewRequest("GET", urlStr, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	client := http.DefaultClient
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+	var discussList []Discuss
+	body, _ := io.ReadAll(resp.Body)
+	json.Unmarshal(body, &discussList)
+
+	for _, d := range discussList {
+		if d.Status == "normal" {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func getPageContent(domain, token, title string) (string, string, error) {
