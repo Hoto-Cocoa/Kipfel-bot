@@ -103,7 +103,7 @@ func main() {
 }
 
 func promptConfig() (string, string) {
-	d := prompt("Enter domain (e.g. https://doc.theseed.io): ")
+	d := prompt("Enter domain (e.g. theseed.io): ")
 	t := prompt("Enter API token: ")
 	return d, t
 }
@@ -127,7 +127,7 @@ func parseList(s string) []string {
 }
 
 func getBacklinksByNamespace(domain, token, title, namespace string) ([]string, error) {
-	urlStr := fmt.Sprintf("%s/api/backlink/%s?namespace=%s", domain,
+	urlStr := fmt.Sprintf("https://%s/api/backlink/%s?namespace=%s", domain,
 		url.PathEscape(title), url.QueryEscape(namespace))
 	req, _ := http.NewRequest("GET", urlStr, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -150,7 +150,7 @@ func getBacklinksByNamespace(domain, token, title, namespace string) ([]string, 
 }
 
 func getPageContent(domain, token, title string) (string, string, error) {
-	urlStr := fmt.Sprintf("%s/api/edit/%s", domain, url.PathEscape(title))
+	urlStr := fmt.Sprintf("https://%s/api/edit/%s", domain, url.PathEscape(title))
 	req, _ := http.NewRequest("GET", urlStr, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	client := http.DefaultClient
@@ -171,7 +171,7 @@ func getPageContent(domain, token, title string) (string, string, error) {
 func updatePageContent(domain, token, title, content, editToken, logMsg string) error {
 	payload := map[string]string{"text": content, "log": logMsg, "token": editToken}
 	data, _ := json.Marshal(payload)
-	urlStr := fmt.Sprintf("%s/api/edit/%s", domain, url.PathEscape(title))
+	urlStr := fmt.Sprintf("https://%s/api/edit/%s", domain, url.PathEscape(title))
 	req, _ := http.NewRequest("POST", urlStr, strings.NewReader(string(data)))
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
