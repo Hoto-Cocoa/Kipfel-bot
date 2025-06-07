@@ -55,10 +55,20 @@ func main() {
 	logEntry := strings.ReplaceAll(logTemplate, "{old}", oldTitle)
 	logEntry = strings.ReplaceAll(logEntry, "{new}", newTitle)
 
-	docs, err := getBacklinks(domain, token, oldTitle, nsList)
-	if err != nil {
-		fmt.Println("Error fetching backlinks:", err)
-		os.Exit(1)
+	docsMap := make(map[string]struct{})
+	for _, ns := range nsList {
+		list, err := getBacklinksByNamespace(domain, token, oldTitle, ns)
+		if err != nil {
+			fmt.Printf("Error fetching backlinks in namespace '%s': %v\n", ns, err)
+			continue
+		}
+		for _, doc := range list {
+			docsMap[doc] = struct{}{}
+		}
+	}
+	var docs []string
+	for doc := range docsMap {
+		docs = append(docs, doc)
 	}
 	total := len(docs)
 	fmt.Printf("Found %d backlinks to process.\n", total)
@@ -116,9 +126,9 @@ func parseList(s string) []string {
 	return list
 }
 
-func getBacklinks(domain, token, title string, namespaces []string) ([]string, error) {
-	nsParam := url.QueryEscape(strings.Join(namespaces, ","))
-	urlStr := fmt.Sprintf("%s/api/backlink/%s?namespaces=%s", domain, url.PathEscape(title), nsParam)
+func getBacklinksByNamespace(domain, token, title, namespace string) ([]string, error) {
+	urlStr := fmt.Sprintf("%s/api/backlink/%s?namespace=%s", domain,
+		url.PathEscape(title), url.QueryEscape(namespace))
 	req, _ := http.NewRequest("GET", urlStr, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	client := http.DefaultClient
