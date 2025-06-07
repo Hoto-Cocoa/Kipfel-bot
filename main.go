@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -101,7 +102,11 @@ func main() {
 	for idx, doc := range docs {
 		text, editToken, err := getPageContent(domain, token, doc)
 		if err != nil {
-			fmt.Printf("Failed to fetch %s (%d/%d): %v\n", doc, idx+1, total, err)
+			if err == ErrPermDenied {
+				fmt.Printf("권한 문제로 %s 문서를 편집할 수 없습니다. (%d/%d).\n", doc, idx+1, total)
+			} else {
+				fmt.Printf("Failed to fetch %s (%d/%d): %v\n", doc, idx+1, total, err)
+			}
 			continue
 		}
 		updated := re.ReplaceAllStringFunc(text, func(m string) string {
@@ -199,6 +204,8 @@ func checkDiscuss(domain, token, title string) (bool, error) {
 	return false, nil
 }
 
+var ErrPermDenied = errors.New("API access denied due to insufficient permissions")
+
 func getPageContent(domain, token, title string) (string, string, error) {
 	urlStr := fmt.Sprintf("https://%s/api/edit/%s", domain, url.PathEscape(title))
 	req, _ := http.NewRequest("GET", urlStr, nil)
@@ -211,10 +218,14 @@ func getPageContent(domain, token, title string) (string, string, error) {
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	var r struct {
-		Text  string `json:"text"`
-		Token string `json:"token"`
+		Text   string `json:"text"`
+		Token  string `json:"token"`
+		Status string `json:"status"`
 	}
 	json.Unmarshal(body, &r)
+	if strings.Contains(r.Status, "때문에 편집 권한이 부족합니다.") {
+		return "", "", ErrPermDenied
+	}
 	return r.Text, r.Token, nil
 }
 
