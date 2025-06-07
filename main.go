@@ -106,6 +106,9 @@ func main() {
 		}
 		updated := re.ReplaceAllStringFunc(text, func(m string) string {
 			parts := re.FindStringSubmatch(m)
+			if parts[1] == newTitle {
+				parts[1] = ""
+			}
 			if parts[1] != "" {
 				return fmt.Sprintf("[[%s|%s]]", newTitle, parts[1])
 			}
