@@ -97,7 +97,7 @@ func main() {
 	total := len(docs)
 	fmt.Printf("Found %d backlinks to process.\n", total)
 
-	re := regexp.MustCompile(`\[\[` + regexp.QuoteMeta(oldTitle) + `(?:\|([^\[\]]+))?\]\]`)
+	re := regexp.MustCompile(`\[\[[\t\f ]*` + regexp.QuoteMeta(oldTitle) + `[\t\f ]*(?:\|([^\[\]]+))?\]\]`)
 	for idx, doc := range docs {
 		text, editToken, err := getPageContent(domain, token, doc)
 		if err != nil {
