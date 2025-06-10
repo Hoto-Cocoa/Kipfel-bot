@@ -1,5 +1,5 @@
 ## 사용 방법
-1. [여기](https://github.com/Hoto-Cocoa/Micro-RearAlice/releases)에서 최신 버전을 받습니다.
+1. [여기](https://github.com/Hoto-Cocoa/Kipfel-bot/releases)에서 최신 버전을 받습니다.
 1. 적절한 곳에 옮기고 실행합니다.
 1. 최초 설정을 진행합니다.
     1. 도메인을 입력합니다.

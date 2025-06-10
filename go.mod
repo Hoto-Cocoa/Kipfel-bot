@@ -1,4 +1,4 @@
-module micro-rearalice
+module kipfel
 
 go 1.21.5
 
