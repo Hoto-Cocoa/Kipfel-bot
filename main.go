@@ -47,9 +47,9 @@ func main() {
 	dataCfg, err := ini.Load("data.ini")
 	if err != nil {
 		dataCfg = ini.Empty()
-		nsInput := prompt("Enter namespaces to search (comma-separated): ")
-		logTpl := prompt("Enter log template (use {old} and {new}): ")
-		watchDoc := prompt("Enter document to watch for open discussion: ")
+		nsInput := prompt("찾아볼 이름공간을 쉼표로 구분하여 입력하세요: ")
+		logTpl := prompt("편집 요약 형식을 입력하세요({old}, {new} 사용): ")
+		watchDoc := prompt("열린 토론을 감시할 문서의 표제어를 입력하세요: ")
 		dataCfg.Section("").Key("namespaces").SetValue(nsInput)
 		dataCfg.Section("").Key("logTemplate").SetValue(logTpl)
 		dataCfg.Section("").Key("watchDocument").SetValue(watchDoc)
@@ -63,19 +63,19 @@ func main() {
 		for {
 			open, err := checkDiscuss(domain, token, watchDocument)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error checking discuss: %v\n", err)
+				fmt.Fprintf(os.Stderr, "토론 확인 중 오류 발생: %v\n", err)
 				panic(err)
 			} else if open {
-				fmt.Printf("Discuss on '%s' is normal. Stopping bot.\n", watchDocument)
+				fmt.Printf("[[%s]] 문서에 열린 토론이 있어 봇을 정지합니다.\n", watchDocument)
 				os.Exit(0)
 			}
 			time.Sleep(15 * time.Second)
 		}
 	}()
 
-	oldTitle := prompt("Enter old title: ")
-	newTitle := prompt("Enter new title: ")
-	keepText := strings.ToLower(prompt("Keep display text for bare links? (y/n): ")) == "y"
+	oldTitle := prompt("기존 표제어를 입력하세요: ")
+	newTitle := prompt("신규 표제어를 입력하세요: ")
+	keepText := strings.ToLower(prompt("표시 텍스트를 기존 표제어로 유지하시겠습니까? (y/n): ")) == "y"
 
 	logEntry := strings.ReplaceAll(logTemplate, "{old}", oldTitle)
 	logEntry = strings.ReplaceAll(logEntry, "{new}", newTitle)
@@ -84,7 +84,7 @@ func main() {
 	for _, ns := range nsList {
 		list, err := getBacklinksByNamespace(domain, token, oldTitle, ns)
 		if err != nil {
-			fmt.Printf("Error fetching backlinks in namespace '%s': %v\n", ns, err)
+			fmt.Printf("'%s' 이름공간에서 역링크를 탐색하는 도중 오류가 발생했습니다: %v\n", ns, err)
 			continue
 		}
 		for _, doc := range list {
@@ -96,16 +96,16 @@ func main() {
 		docs = append(docs, doc)
 	}
 	total := len(docs)
-	fmt.Printf("Found %d backlinks to process.\n", total)
+	fmt.Printf("%d개의 역링크를 찾았습니다.\n", total)
 
 	re := regexp.MustCompile(`\[\[[\t\f ]*` + regexp.QuoteMeta(oldTitle) + `[\t\f ]*(?:\|([^\[\]]+))?\]\]`)
 	for idx, doc := range docs {
 		text, editToken, err := getPageContent(domain, token, doc)
 		if err != nil {
 			if err == ErrPermDenied {
-				fmt.Printf("권한 문제로 %s 문서를 편집할 수 없습니다. (%d/%d).\n", doc, idx+1, total)
+				fmt.Printf("권한 문제로 [[%s]] 문서를 편집할 수 없습니다. (%d/%d)\n", doc, idx+1, total)
 			} else {
-				fmt.Printf("Failed to fetch %s (%d/%d): %v\n", doc, idx+1, total, err)
+				fmt.Printf("[[%s]] 문서 편집을 실패했습니다. (%d/%d)\n%v\n", doc, idx+1, total, err)
 			}
 			continue
 		}
@@ -125,9 +125,9 @@ func main() {
 		if updated != text {
 			err = updatePageContent(domain, token, doc, updated, editToken, logEntry)
 			if err != nil {
-				fmt.Printf("Failed to update %s (%d/%d): %v\n", doc, idx+1, total, err)
+				fmt.Printf("[[%s]] 문서 편집을 실패했습니다. (%d/%d)\n%v\n", doc, idx+1, total, err)
 			} else {
-				fmt.Printf("Updated %s (%d/%d)\n", doc, idx+1, total)
+				fmt.Printf("[[%s]] 문서 편집을 성공했습니다. (%d/%d)\n", doc, idx+1, total)
 			}
 			time.Sleep(time.Second)
 		}
@@ -135,8 +135,8 @@ func main() {
 }
 
 func promptConfig() (string, string) {
-	d := prompt("Enter domain (e.g. theseed.io): ")
-	t := prompt("Enter API token: ")
+	d := prompt("도메인을 입력하세요(예시: theseed.io): ")
+	t := prompt("API 토큰을 입력하세요: ")
 	return d, t
 }
 
