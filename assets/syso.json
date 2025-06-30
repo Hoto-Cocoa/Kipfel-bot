@@ -1,0 +1,39 @@
+{
+  "Icons": [
+    {
+      "ID": 1,
+      "Path": "assets/icon.ico"
+    }
+  ],
+  "Manifest": {
+    "ID": 1,
+    "Path": "app.manifest"
+  },
+  "VersionInfos": [
+    {
+      "ID": 1,
+      "StringTables": [
+        {
+          "Language": "0409",
+          "Charset": "04b0",
+          "Strings": {
+            "CompanyName": "{REPO_NAME} Contributors",
+            "FileDescription": "{REPO_NAME}",
+            "FileVersion": "{VERSION}",
+            "InternalName": "{REPO_NAME}",
+            "LegalCopyright": "\u00a9 {REPO_NAME} Contributors. All rights reserved.",
+            "OriginalFilename": "{REPO_NAME}.exe",
+            "ProductName": "{REPO_NAME}",
+            "ProductVersion": "{VERSION}"
+          }
+        }
+      ],
+      "Translations": [
+        {
+          "Language": "0409",
+          "Charset": "04b0"
+        }
+      ]
+    }
+  ]
+}

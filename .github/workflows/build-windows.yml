@@ -1,0 +1,84 @@
+name: Build, Sign and Release Windows Binary
+
+on:
+  push:
+    tags:
+      - 'r*'
+
+jobs:
+  build-sign-release:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      - name: Install syso
+        run: |
+          go install github.com/hallazzang/syso/cmd/syso@latest
+
+      - name: Build Windows executable
+        env:
+          GOOS: windows
+          GOARCH: 386
+        run: |
+          Copy-Item 'assets/syso.json' .; (Get-Content '.\syso.json' -Raw) -replace '\{REPO_NAME\}','${{ github.event.repository.name }}' -replace '\{VERSION\}','${{ github.ref_name }}' | Set-Content '.\syso.json'
+          Copy-Item 'assets/app.manifest' .; (Get-Content '.\app.manifest' -Raw) -replace '\{REPO_NAME\}','${{ github.event.repository.name }}' | Set-Content '.\app.manifest'
+          & "$(go env GOPATH)\bin\syso.exe"
+          go build -ldflags "-s -w" -o "output.exe"
+
+      - name: Run UPX
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          version: latest
+          files: |
+            ${{ github.workspace }}\output.exe
+          args: --best --lzma
+
+      - name: Sign the executable with Azure Trusted Signing
+        uses: azure/trusted-signing-action@v0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_CODE_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files: ${{ github.workspace }}\output.exe
+
+      - name: Get existing release ID (if any)
+        id: get_release
+        run: |
+          $RELEASE_ID = (gh release view ${{ github.ref_name }} --repo ${{ github.repository }} --json databaseId -q .databaseId) ?? ""
+          echo "release_id=$RELEASE_ID" >> $ENV:GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release if not exists
+        if: steps.get_release.outputs.release_id == ''
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Determine upload URL
+        id: upload_url
+        run: |
+          $API_URL = if ("${{ steps.get_release.outputs.release_id }}") { "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ steps.get_release.outputs.release_id }}/assets" } else { "${{ steps.create_release.outputs.upload_url }}" }; echo "upload_url=$API_URL" >> $ENV:GITHUB_OUTPUT
+
+      - name: Upload signed executable
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.upload_url.outputs.upload_url }}?name=${{ github.event.repository.name }}-${{ github.ref_name }}.exe
+          asset_path: ${{ github.workspace }}\output.exe
+          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}.exe
+          asset_content_type: application/vnd.microsoft.portable-executable
